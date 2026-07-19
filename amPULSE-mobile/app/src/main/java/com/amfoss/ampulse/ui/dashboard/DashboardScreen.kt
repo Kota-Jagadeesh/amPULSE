@@ -10,25 +10,36 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.amfoss.ampulse.ui.components.DashboardCard
 import com.amfoss.ampulse.ui.components.LeaderboardItem
 import com.amfoss.ampulse.ui.components.StatCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen() {
+fun DashboardScreen(
+    viewModel: DashboardViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshUsageData()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
                         Text(
-                            text = "Hello, Jagadeesh!",
+                            text = "Hello, User!",
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
@@ -39,8 +50,8 @@ fun DashboardScreen() {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                    IconButton(onClick = { viewModel.refreshUsageData() }) {
+                        Icon(Icons.Default.Notifications, contentDescription = "Refresh")
                     }
                     IconButton(onClick = { /* TODO */ }) {
                         Icon(Icons.Default.Person, contentDescription = "Profile")
@@ -65,101 +76,94 @@ fun DashboardScreen() {
             }
         }
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                DashboardCard(
-                    title = "Today's Screen Time",
-                    value = "4h 18m",
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+        if (uiState.isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-
-            item {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    StatCard(
-                        label = "Weekly Avg",
-                        value = "3h 52m",
-                        modifier = Modifier.weight(1f)
-                    )
-                    StatCard(
-                        label = "Monthly Avg",
-                        value = "4h 10m",
-                        modifier = Modifier.weight(1f)
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    DashboardCard(
+                        title = "Today's Screen Time",
+                        value = uiState.totalScreenTime,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 }
-            }
 
-            item {
-                Text(
-                    text = "Usage Trend",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-                // Placeholder for Chart
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Text("Usage Graph Placeholder", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                item {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        StatCard(
+                            label = "Weekly Avg",
+                            value = "3h 52m", // Placeholder for now
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatCard(
+                            label = "Monthly Avg",
+                            value = "4h 10m", // Placeholder for now
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
-            }
 
-            item {
-                Text(
-                    text = "Top Apps",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
+                item {
+                    Text(
+                        text = "Top Apps",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
 
-            item {
-                DashboardCard(
-                    title = "YouTube",
-                    value = "1h 42m"
-                )
-            }
+                items(uiState.topApps) { app ->
+                    val usageTime = formatMillisToTime(app.totalTimeInForeground)
+                    DashboardCard(
+                        title = app.appName,
+                        value = usageTime
+                    )
+                }
 
-            item {
-                Text(
-                    text = "Leaderboard",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
+                item {
+                    Text(
+                        text = "Leaderboard",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
 
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        LeaderboardItem(rank = 1, name = "Rahul", time = "2h 15m")
-                        Divider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp)
-                        LeaderboardItem(rank = 2, name = "Jagadeesh", time = "4h 18m")
-                        Divider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp)
-                        LeaderboardItem(rank = 3, name = "Arjun", time = "5h 10m")
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            LeaderboardItem(rank = 1, name = "Rahul", time = "2h 15m")
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp)
+                            LeaderboardItem(rank = 2, name = "You", time = uiState.totalScreenTime)
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp)
+                            LeaderboardItem(rank = 3, name = "Arjun", time = "5h 10m")
+                        }
                     }
                 }
-            }
-            
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
+                
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
         }
     }
+}
+
+private fun formatMillisToTime(millis: Long): String {
+    val totalSeconds = millis / 1000
+    val totalMinutes = totalSeconds / 60
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return "${hours}h ${minutes}m"
 }
